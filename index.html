@@ -1,0 +1,317 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>World Analog Clocks with Gradient Animation</title>
+  <style>
+    html, body {
+      margin: 0;
+      padding: 0;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: radial-gradient(circle at top left, #1c2340, #090d18);
+      color: #fff;
+      height: 100%;
+      width: 100%;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: flex-start;
+    }
+
+    /* Time Converter */
+    .converter-box {
+      margin-top: 10px;
+      background: #101630;
+      padding: 15px 25px;
+      border-radius: 12px;
+      box-shadow: 0 0 20px rgba(0, 0, 0, 0.5);
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+    }
+
+    .converter-box input,
+    .converter-box select,
+    .converter-box button {
+      font-size: 14px;
+      padding: 6px 10px;
+      border-radius: 6px;
+      border: none;
+      outline: none;
+    }
+
+    .converter-box input, .converter-box select {
+      background: #f4f4f4;
+      color: #000;
+    }
+
+    .converter-box button {
+      background: #ffb400;
+      color: #000;
+      font-weight: bold;
+      cursor: pointer;
+      transition: background 0.3s;
+    }
+
+    .converter-box button:hover {
+      background: #d49e00;
+    }
+
+    .results {
+      margin-top: 10px;
+      text-align: center;
+      font-size: 15px;
+      color: #ffd700;
+      line-height: 1.6;
+    }
+
+    /* Clock Grid */
+    .grid {
+      display: flex;
+      justify-content: center;
+      align-items: flex-start;
+      gap: 20px;
+      width: 100%;
+      margin-top: 25px;
+      overflow: hidden;
+      flex-wrap: nowrap;
+    }
+
+    .clock-card {
+      border-radius: 16px;
+      box-shadow: 0 8px 25px rgba(0, 0, 0, 0.4);
+      padding: 10px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      background: #0d1025;
+      transition: all 0.5s ease;
+      min-width: 180px;
+    }
+
+    .label {
+      font-weight: bold;
+      font-size: 1em;
+      margin-bottom: 8px;
+      color: #ffcc33;
+    }
+
+    .clock {
+      position: relative;
+      width: 140px;
+      height: 140px;
+      border-radius: 50%;
+      border: 3px solid #ffcc33;
+      background: linear-gradient(45deg, #ffd700, #ffa500, #ffcc33);
+      background-size: 300% 300%;
+      animation: gradientShift 8s ease infinite;
+      box-shadow: inset 0 0 20px rgba(0,0,0,0.4);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    @keyframes gradientShift {
+      0% { background-position: 0% 50%; }
+      50% { background-position: 100% 50%; }
+      100% { background-position: 0% 50%; }
+    }
+
+    .number {
+      position: absolute;
+      font-size: 13px;
+      color: #111;
+      font-weight: bold;
+      transform: translate(-50%, -50%);
+    }
+
+    .hand {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform-origin: bottom center;
+      transform: translate(-50%, -100%) rotate(0deg);
+      border-radius: 4px;
+    }
+
+    .hour { width: 5px; height: 35px; background: #000; }
+    .minute { width: 3px; height: 50px; background: #222; }
+    .second { width: 2px; height: 60px; background: #ff0077; }
+
+    .center {
+      position: absolute;
+      width: 14px;
+      height: 14px;
+      background: #ffcc00;
+      border-radius: 50%;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      box-shadow: 0 0 10px rgba(255, 220, 0, 0.9);
+    }
+
+    .digital {
+      margin-top: 8px;
+      font-size: 0.85em;
+      font-weight: 600;
+      color: #ffcc33;
+    }
+  </style>
+</head>
+<body>
+  <!-- Time Converter -->
+  <div class="converter-box">
+    <input type="number" id="hour" min="1" max="12" placeholder="Hour">
+    <input type="number" id="minute" min="0" max="59" placeholder="Min">
+    <select id="ampm">
+      <option>AM</option>
+      <option>PM</option>
+    </select>
+    <select id="fromTZ"></select>
+    <button onclick="convertTime()">Convert</button>
+  </div>
+
+  <div class="results" id="results"></div>
+
+  <!-- Clocks -->
+  <div class="grid" id="grid"></div>
+
+  <template id="clock-template">
+    <div class="clock-card">
+      <div class="label"></div>
+      <div class="clock">
+        <div class="hand hour"></div>
+        <div class="hand minute"></div>
+        <div class="hand second"></div>
+        <div class="center"></div>
+      </div>
+      <div class="digital"></div>
+    </div>
+  </template>
+
+  <script>
+    const zones = [
+      { label: 'Pacific Time (PST)', tz: 'America/Los_Angeles' },
+      { label: 'Mountain Time (MST)', tz: 'America/Denver' },
+      { label: 'Central Time (CST)', tz: 'America/Chicago' },
+      { label: 'Eastern Time (EST)', tz: 'America/New_York' },
+      { label: 'UK Time (London)', tz: 'Europe/London' },
+      { label: 'India Time (IST)', tz: 'Asia/Kolkata' },
+      { label: 'Australia Time (Sydney)', tz: 'Australia/Sydney' },
+      { label: 'Five9 Time', tz: 'Etc/GMT+7' }
+    ];
+
+    const grid = document.getElementById('grid');
+    const tpl = document.getElementById('clock-template');
+    const fromTZSelect = document.getElementById('fromTZ');
+    const results = document.getElementById('results');
+
+    zones.forEach(z => {
+      const opt = document.createElement('option');
+      opt.value = z.tz;
+      opt.textContent = z.label;
+      fromTZSelect.appendChild(opt);
+    });
+
+    function createNumbers(clock) {
+      for (let i = 1; i <= 12; i++) {
+        const num = document.createElement('div');
+        num.className = 'number';
+        const angle = (i / 12) * 360;
+        const x = 70 + 55 * Math.sin((angle * Math.PI) / 180);
+        const y = 70 - 55 * Math.cos((angle * Math.PI) / 180);
+        num.style.left = `${x}px`;
+        num.style.top = `${y}px`;
+        num.textContent = i;
+        clock.appendChild(num);
+      }
+    }
+
+    function zonedDate(tz) {
+      const now = new Date();
+      const parts = new Intl.DateTimeFormat('en-GB', {
+        timeZone: tz,
+        hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false
+      }).formatToParts(now).reduce((acc, p) => { acc[p.type] = p.value; return acc; }, {});
+      const d = new Date();
+      d.setHours(parts.hour, parts.minute, parts.second);
+      return d;
+    }
+
+    function createClock({ label, tz }) {
+      const node = tpl.content.firstElementChild.cloneNode(true);
+      node.querySelector('.label').textContent = label;
+      const clock = node.querySelector('.clock');
+      createNumbers(clock);
+      grid.appendChild(node);
+      return node;
+    }
+
+    const cards = zones.map(createClock);
+
+    function update() {
+      for (const card of cards) {
+        const tz = zones[cards.indexOf(card)].tz;
+        const d = zonedDate(tz);
+
+        const h = d.getHours();
+        const m = d.getMinutes();
+        const s = d.getSeconds();
+
+        const hourDeg = ((h % 12) + m / 60) * 30;
+        const minDeg = (m + s / 60) * 6;
+        const secDeg = s * 6;
+
+        card.querySelector('.hour').style.transform = `translate(-50%, -100%) rotate(${hourDeg}deg)`;
+        card.querySelector('.minute').style.transform = `translate(-50%, -100%) rotate(${minDeg}deg)`;
+        card.querySelector('.second').style.transform = `translate(-50%, -100%) rotate(${secDeg}deg)`;
+
+        const formatter = new Intl.DateTimeFormat('en-GB', {
+          timeZone: tz,
+          hour: '2-digit', minute: '2-digit', second: '2-digit',
+          day: '2-digit', month: 'short', year: 'numeric'
+        });
+        card.querySelector('.digital').textContent = formatter.format(new Date());
+      }
+      requestAnimationFrame(update);
+    }
+
+    update();
+
+    // Conversion Function
+    function convertTime() {
+      const hour = parseInt(document.getElementById('hour').value);
+      const minute = parseInt(document.getElementById('minute').value);
+      const ampm = document.getElementById('ampm').value;
+      const fromTZ = document.getElementById('fromTZ').value;
+
+      if (isNaN(hour) || isNaN(minute)) {
+        results.textContent = "⚠️ Please enter valid time.";
+        return;
+      }
+
+      let h24 = hour % 12 + (ampm === "PM" ? 12 : 0);
+
+      const base = new Date();
+      base.setHours(h24, minute, 0, 0);
+      const output = zones.map(z => {
+        const options = {
+          timeZone: z.tz,
+          hour: '2-digit',
+          minute: '2-digit',
+          hour12: true
+        };
+        const formatted = new Intl.DateTimeFormat('en-US', options).format(base);
+        return `${z.label}: ${formatted}`;
+      });
+
+      results.innerHTML = `<b>Converted Times:</b><br>${output.join('<br>')}`;
+    }
+  </script>
+</body>
+</html>
